@@ -181,6 +181,12 @@ type (
 	mode         int
 )
 
+const (
+	focusList mode = iota
+	focusInput
+	focusFeed
+)
+
 func (i item) FilterValue() string { return "" }
 
 func (d itemDelegate) Height() int                               { return 1 }
