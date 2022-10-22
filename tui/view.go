@@ -7,17 +7,31 @@ import (
 )
 
 func (m Model) View() string {
-	m.viewport.Style = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("212")).Width(m.viewport.Width)
+	focusedColor := lipgloss.Color("201")
+	borderColor := lipgloss.Color("69")
+	errString := ""
+	m.viewport.Style = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(borderColor).Width(m.viewport.Width)
 
 	// channel pane
-	left := lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("212")).Height(m.viewport.Height).Width(m.viewport.Width / 7).Padding(1).Render(m.list.View())
-	right := m.viewport.View()
-	bottomRight := lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Height(1).Width(m.viewport.Width).BorderForeground(lipgloss.Color("212")).Padding(1).Render(m.textarea.View())
+	listPane := lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(borderColor).Height(m.viewport.Height).Width(m.viewport.Width / 7).Padding(1)
+	inputPane := lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Height(1).Width(m.viewport.Width).BorderForeground(borderColor).Padding(1)
+	switch m.mode {
+	case focusInput:
+		inputPane.BorderForeground(focusedColor)
+	case focusFeed:
+		m.viewport.Style.BorderForeground(focusedColor)
+	default:
+		// list is default
+		listPane.BorderForeground(focusedColor)
+
+	}
 
 	// chat window and input
-	rightPane := lipgloss.JoinVertical(lipgloss.Center, right, bottomRight)
-
-	formatted := lipgloss.JoinHorizontal(lipgloss.Left, left, rightPane)
+	rightPane := lipgloss.JoinVertical(lipgloss.Center, m.viewport.View(), inputPane.Render(m.textarea.View()))
+	if m.err != nil {
+		errString = m.err.Error()
+	}
+	formatted := lipgloss.JoinHorizontal(lipgloss.Left, listPane.Render(m.list.View()), rightPane, errString)
 
 	return constants.DocStyle.Render(formatted)
 }
