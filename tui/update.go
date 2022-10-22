@@ -2,8 +2,9 @@ package tui
 
 import (
 	"fmt"
-	"pixel/tui/constants"
 	"strings"
+
+	"pixel/tui/constants"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -12,12 +13,6 @@ import (
 )
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var (
-		liCmd tea.Cmd
-		tiCmd tea.Cmd
-		vpCmd tea.Cmd
-	)
-
 	switch msg := msg.(type) {
 	// Implement different tea messages sent by the client.
 	// I.e., constants.Message message data sent in a Matrix room.
@@ -35,34 +30,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			fmt.Println(m.textarea.Value())
 			return m, tea.Quit
 		case key.Matches(msg, constants.Keymap.Tab):
-			m.toggleBox()
-		case key.Matches(msg, constants.Keymap.ListNav):
-			if !m.textarea.Focused() {
-				// prevents having to press the arrow key twice for updates
-				// really hacky -__-
-				if msg.String() == "down" {
-					m.list.CursorDown()
-					m.updateViewport()
-					m.list.CursorUp()
-				}
-				if msg.String() == "up" {
-					m.list.CursorUp()
-					m.updateViewport()
-					m.list.CursorDown()
-				}
-
-			}
-
-		case key.Matches(msg, constants.Keymap.Enter):
-			if m.textarea.Focused() {
-				if m.textarea.Value() != "" {
-					// get selected room from the list
-					i, _ := m.list.SelectedItem().(item)
-					// send text, there's other options too for later (i.e., images)
-					m.client.SendText(id.RoomID(m.rooms[string(i)]), m.textarea.Value())
-					m.textarea.SetValue("")
-				}
-			}
+			m.nextElement()
 		}
 
 	// We handle errors just like any other message
@@ -71,11 +39,76 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.list, liCmd = m.list.Update(msg)
-	m.textarea, tiCmd = m.textarea.Update(msg)
-	m.viewport, vpCmd = m.viewport.Update(msg)
+	switch m.mode {
+	case focusInput:
+		return m.UpdateInput(msg)
+	case focusFeed:
+		return m.UpdateFeed(msg)
+	default:
+		return m.UpdateList(msg)
+	}
+}
 
-	return m, tea.Batch(tiCmd, vpCmd, liCmd)
+func (m *Model) UpdateList(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var liCmd tea.Cmd
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "down":
+			m.list.CursorDown()
+			m.updateViewport()
+			m.list.CursorUp()
+		case "up":
+			m.list.CursorUp()
+			m.updateViewport()
+			m.list.CursorDown()
+		}
+	}
+
+	m.list, liCmd = m.list.Update(msg)
+	return m, liCmd
+}
+
+func (m *Model) UpdateInput(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var tiCmd tea.Cmd
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch {
+		case key.Matches(msg, constants.Keymap.Enter):
+			if m.textarea.Focused() {
+				if m.textarea.Value() != "" {
+					// TODO: send text, there's other options too for later (i.e., images)
+					message := m.textarea.Value()
+					m.textarea.SetValue("")
+					return m, m.SendTextMessage(message)
+				}
+			}
+		}
+	}
+
+	m.textarea, tiCmd = m.textarea.Update(msg)
+	return m, tiCmd
+}
+
+func (m *Model) UpdateFeed(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var vpCmd tea.Cmd
+	m.viewport, vpCmd = m.viewport.Update(msg)
+	return m, vpCmd
+}
+
+/* HELPERS */
+
+func (m *Model) SendTextMessage(msg string) tea.Cmd {
+	return func() tea.Msg {
+		room, _ := m.list.SelectedItem().(item)
+		resp, err := m.client.SendText(id.RoomID(m.rooms[string(room)]), msg)
+		if err != nil {
+			return errMsg(err)
+		}
+		return resp
+	}
 }
 
 // setContent performs text wrapping before setting the content in the viewport
@@ -84,10 +117,18 @@ func (m *Model) setContent(text string) {
 	m.viewport.SetContent(wrap.Render(text))
 }
 
-// toggleBox toggles between the message entry and room list
-func (m *Model) toggleBox() {
-	m.mode = (m.mode + 1) % 2
-	if m.mode == 0 {
+// nextElement toggles between the message entry and room list
+func (m *Model) nextElement() {
+	if m.mode == focusFeed {
+		m.mode = focusList
+	} else {
+		m.mode++
+	}
+	m.handleInput()
+}
+
+func (m *Model) handleInput() {
+	if m.mode != focusInput {
 		m.textarea.Blur()
 		m.setListEnabled(true)
 	} else {
