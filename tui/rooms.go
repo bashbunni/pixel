@@ -25,8 +25,6 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		return
 	}
 
-	str := fmt.Sprintf("%s", i)
-
 	fn := styles.ItemStyle.Render
 	if index == m.Index() {
 		fn = func(s string) string {
@@ -34,10 +32,10 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		}
 	}
 
-	fmt.Fprintf(w, fn(str))
+	fmt.Fprint(w, fn(string(i)))
 }
 
-func CreateList() list.Model {
+func CreateRooms() list.Model {
 	list := list.New([]list.Item{}, ItemDelegate{}, styles.DefaultWidth, styles.ListHeight)
 	list.SetFilteringEnabled(false)
 	list.DisableQuitKeybindings()

@@ -17,13 +17,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Implement different tea messages sent by the client.
 	// I.e., constants.Message message data sent in a Matrix room.
 	case constants.Message:
-		m.updateViewport()
+		m.displayMessages()
 	case constants.Room:
 		m.list.InsertItem(-1, Room(msg.Name))
 	case tea.WindowSizeMsg:
 		m.viewport.Width = msg.Width - msg.Width/4
 		m.viewport.Height = msg.Height - msg.Height/4
-		m.updateViewport()
+		m.displayMessages()
 	case tea.KeyMsg:
 		switch {
 		case msg.String() == "ctrl+c":
@@ -39,10 +39,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	switch m.mode {
-	case focusInput:
+	switch m.Focus {
+	case Input:
 		return m.UpdateInput(msg)
-	case focusFeed:
+	case Feed:
 		return m.UpdateFeed(msg)
 	default:
 		return m.UpdateList(msg)
@@ -57,11 +57,11 @@ func (m *Model) UpdateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "down":
 			m.list.CursorDown()
-			m.updateViewport()
+			m.displayMessages()
 			m.list.CursorUp()
 		case "up":
 			m.list.CursorUp()
-			m.updateViewport()
+			m.displayMessages()
 			m.list.CursorDown()
 		}
 	}
@@ -98,6 +98,13 @@ func (m *Model) UpdateFeed(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, vpCmd
 }
 
+// SetContent performs text wrapping before setting the content in the viewport
+func (m *Model) SetContent(text string) {
+	wrap := lipgloss.NewStyle().Width(m.viewport.Width)
+	// TODO: fix this with reflow
+	m.viewport.SetContent(wrap.Render(text))
+}
+
 /* HELPERS */
 
 func (m *Model) SendTextMessage(msg string) tea.Cmd {
@@ -111,34 +118,26 @@ func (m *Model) SendTextMessage(msg string) tea.Cmd {
 	}
 }
 
-// setContent performs text wrapping before setting the content in the viewport
-func (m *Model) setContent(text string) {
-	wrap := lipgloss.NewStyle().Width(m.viewport.Width)
-	m.viewport.SetContent(wrap.Render(text))
-}
-
 // nextElement toggles between the message entry and room list
 func (m *Model) nextElement() {
-	if m.mode == focusFeed {
-		m.mode = focusList
+	if m.Focus == Feed {
+		m.Focus = List
 	} else {
-		m.mode++
+		m.Focus++
 	}
 	m.handleInput()
 }
 
 func (m *Model) handleInput() {
-	if m.mode != focusInput {
+	if m.Focus != Input {
 		m.textarea.Blur()
-		m.setListEnabled(true)
 	} else {
 		m.textarea.Focus()
-		m.setListEnabled(false)
 	}
 }
 
-// updateViewport sets the displayed messages based on which room is selected.
-func (m *Model) updateViewport() {
+// displayMessages sets the displayed messages based on which room is selected.
+func (m *Model) displayMessages() {
 	if len(m.list.Items()) > 0 {
 
 		// get the current position of the cursuor and use that to access the message map
@@ -148,15 +147,7 @@ func (m *Model) updateViewport() {
 		roomId := m.rooms[string(id)]
 
 		// set content based on selected room
-		m.setContent(strings.Join(m.msgMap[roomId], "\n"))
+		m.SetContent(strings.Join(m.msgMap[roomId], "\n"))
 		m.viewport.GotoBottom()
 	}
-}
-
-// setListEnabled enables/disables the list components key bindings
-func (m *Model) setListEnabled(v bool) {
-	m.list.KeyMap.CursorUp.SetEnabled(v)
-	m.list.KeyMap.CursorDown.SetEnabled(v)
-	m.list.KeyMap.GoToEnd.SetEnabled(v)
-	m.list.KeyMap.GoToStart.SetEnabled(v)
 }

@@ -43,7 +43,7 @@ type config struct {
 }
 
 type Model struct {
-	mode        mode
+	Focus       Focus
 	viewport    viewport.Model
 	textarea    textarea.Model
 	list        list.Model
@@ -165,44 +165,20 @@ func StartTea() {
 
 type (
 	errMsg error
-	mode   int
+	Focus  int
 )
 
 const (
-	focusList mode = iota
-	focusInput
-	focusFeed
+	List Focus = iota
+	Input
+	Feed
 )
 
 // initialModel sets the defaults for each Bubble Tea component and constructs the model
 func initialModel() *Model {
-	// text area
-	ta := textarea.New()
-	ta.Placeholder = "Send a message..."
-	ta.Focus()
-
-	ta.Prompt = "┃ "
-	ta.CharLimit = 280
-
-	ta.SetWidth(30)
-	ta.SetHeight(2)
-
-	// Remove cursor line styling
-	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
-	ta.ShowLineNumbers = false
-	ta.KeyMap.InsertNewline.SetEnabled(false)
-	// start with the text area disabled
-	ta.Blur()
-
-	// viewport
+	ta := CreateTextArea()
 	vp := viewport.New(5, 2)
-	// TODO - apply a new list of keybindings ...
-	vp.KeyMap.PageDown.SetEnabled(false)
-	vp.KeyMap.PageUp.SetEnabled(false)
-	vp.KeyMap.HalfPageDown.SetEnabled(false)
-	vp.KeyMap.HalfPageUp.SetEnabled(false)
-
-	list := CreateList()
+	list := CreateRooms()
 
 	return &Model{
 		textarea:    ta,

@@ -15,10 +15,10 @@ func (m Model) View() string {
 	// channel pane
 	listPane := lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(borderColor).Height(m.viewport.Height).Width(m.viewport.Width / 7).Padding(1)
 	inputPane := lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Height(1).Width(m.viewport.Width).BorderForeground(borderColor).Padding(1)
-	switch m.mode {
-	case focusInput:
+	switch m.Focus {
+	case Input:
 		inputPane.BorderForeground(focusedColor)
-	case focusFeed:
+	case Feed:
 		m.viewport.Style.BorderForeground(focusedColor)
 	default:
 		// list is default
