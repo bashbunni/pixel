@@ -19,7 +19,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case constants.Message:
 		m.updateViewport()
 	case constants.Room:
-		m.list.InsertItem(-1, item(msg.Name))
+		m.list.InsertItem(-1, Room(msg.Name))
 	case tea.WindowSizeMsg:
 		m.viewport.Width = msg.Width - msg.Width/4
 		m.viewport.Height = msg.Height - msg.Height/4
@@ -102,7 +102,7 @@ func (m *Model) UpdateFeed(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *Model) SendTextMessage(msg string) tea.Cmd {
 	return func() tea.Msg {
-		room, _ := m.list.SelectedItem().(item)
+		room, _ := m.list.SelectedItem().(Room)
 		resp, err := m.client.SendText(id.RoomID(m.rooms[string(room)]), msg)
 		if err != nil {
 			return errMsg(err)
@@ -144,7 +144,7 @@ func (m *Model) updateViewport() {
 		// get the current position of the cursuor and use that to access the message map
 		idx := m.list.Cursor()
 		rooms := m.list.Items()
-		id := rooms[idx].(item)
+		id := rooms[idx].(Room)
 		roomId := m.rooms[string(id)]
 
 		// set content based on selected room

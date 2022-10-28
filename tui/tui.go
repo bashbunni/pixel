@@ -20,7 +20,6 @@ package tui
 import (
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"time"
@@ -42,16 +41,6 @@ type config struct {
 	Username   string `env:"USERNAME"`
 	Password   string `env:"PASSWORD"`
 }
-
-var (
-	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
-	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
-	paginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
-	helpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
-	quitTextStyle     = lipgloss.NewStyle().Margin(1, 0, 2, 4)
-)
-
-const listHeight = 14
 
 type Model struct {
 	mode        mode
@@ -175,10 +164,8 @@ func StartTea() {
 }
 
 type (
-	errMsg       error
-	item         string
-	itemDelegate struct{}
-	mode         int
+	errMsg error
+	mode   int
 )
 
 const (
@@ -186,29 +173,6 @@ const (
 	focusInput
 	focusFeed
 )
-
-func (i item) FilterValue() string { return "" }
-
-func (d itemDelegate) Height() int                               { return 1 }
-func (d itemDelegate) Spacing() int                              { return 0 }
-func (d itemDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd { return nil }
-func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
-	i, ok := listItem.(item)
-	if !ok {
-		return
-	}
-
-	str := fmt.Sprintf("%s", i)
-
-	fn := itemStyle.Render
-	if index == m.Index() {
-		fn = func(s string) string {
-			return selectedItemStyle.Render("> " + s)
-		}
-	}
-
-	fmt.Fprintf(w, fn(str))
-}
 
 // initialModel sets the defaults for each Bubble Tea component and constructs the model
 func initialModel() *Model {
@@ -237,25 +201,8 @@ func initialModel() *Model {
 	vp.KeyMap.PageUp.SetEnabled(false)
 	vp.KeyMap.HalfPageDown.SetEnabled(false)
 	vp.KeyMap.HalfPageUp.SetEnabled(false)
-	vp.KeyMap.Up.SetEnabled(false)
-	vp.KeyMap.Down.SetEnabled(false)
 
-	// channel list
-	items := []list.Item{}
-	const defaultWidth = 20
-
-	list := list.New(items, itemDelegate{}, defaultWidth, listHeight)
-	list.SetFilteringEnabled(false)
-	list.DisableQuitKeybindings()
-	list.KeyMap.CursorUp.SetKeys("up")
-	list.KeyMap.CursorDown.SetKeys("down")
-	// disable these keys ("g" and "G") while the list is inactive - it interferes with typing otherwise
-	list.KeyMap.GoToStart.SetEnabled(false)
-	list.KeyMap.GoToEnd.SetEnabled(false)
-	list.KeyMap.Filter.SetEnabled(false)
-
-	list.Title = "Rooms"
-	list.SetStatusBarItemName("Room", "Rooms")
+	list := CreateList()
 
 	return &Model{
 		textarea:    ta,
